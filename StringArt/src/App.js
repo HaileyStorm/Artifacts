@@ -89,7 +89,68 @@ const StringArtGenerator = () => {
       }
     }
 
+    async approximateImage(ctx, targetImageData, numWindings, setProgress, speed, cancelFlag) {
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
 
+      let currentPeg = 0;
+      let colorOffset = 0;
+      const tempCanvas = new OffscreenCanvas(this.canvasSize, this.canvasSize);
+      const tempCtx = tempCanvas.getContext('2d');
+
+      const calculateError = (imageData) => {
+        let error = 0;
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          const currentPixel = (imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2]) / 3;
+          const targetPixel = (targetImageData[i] + targetImageData[i + 1] + targetImageData[i + 2]) / 3;
+          error += Math.abs(currentPixel - targetPixel);
+        }
+        return error;
+      };
+
+      for (let i = 0; i < numWindings; i++) {
+        if (cancelFlag.current) break;
+
+        let bestError = Infinity;
+        let bestPeg = -1;
+
+        const sampleSize = Math.min(20, this.numPegs);
+        const sampledPegs = new Set();
+        while (sampledPegs.size < sampleSize) {
+          sampledPegs.add(Math.floor(Math.random() * this.numPegs));
+        }
+
+        for (let nextPeg of sampledPegs) {
+          if (nextPeg === currentPeg) continue;
+
+          tempCtx.drawImage(ctx.canvas, 0, 0);
+          this.drawLine(tempCtx, currentPeg, nextPeg, colorOffset);
+
+          const error = calculateError(tempCtx.getImageData(0, 0, this.canvasSize, this.canvasSize));
+          if (error < bestError) {
+            bestError = error;
+            bestPeg = nextPeg;
+          }
+        }
+
+        if (bestPeg !== -1) {
+          this.drawLine(ctx, currentPeg, bestPeg, colorOffset);
+          currentPeg = bestPeg;
+          colorOffset = (colorOffset + 0.1) % 1;
+        } else {
+          currentPeg = Math.floor(Math.random() * this.numPegs);
+        }
+
+        if (i % 10 === 0) {
+          setProgress((i + 1) / numWindings * 100);
+          if (speed < 100) {
+            await new Promise(resolve => setTimeout(resolve, Math.max(0, 100 - speed)));
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
+      }
+    }
   }
 
   const handleImageUpload = (event) => {
