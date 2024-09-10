@@ -9,6 +9,8 @@ const StringArtGenerator = () => {
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(100);
   const [status, setStatus] = useState('');
+    const [shape, setShape] = useState('circle');
+    const [distribution, setDistribution] = useState('uniform');
 
   const generatePastelColor = (t) => {
     const r = Math.sin(t) * 64 + 191;
@@ -18,20 +20,229 @@ const StringArtGenerator = () => {
   };
 
   class StringArt {
-    constructor(numPegs, canvasSize) {
+    constructor(numPegs, canvasSize, shape, distribution) {
       this.numPegs = numPegs;
       this.canvasSize = canvasSize;
       this.radius = canvasSize / 2 - 1;
       this.pegPositions = [];
-      this.generatePegPositions();
+      this.generatePegPositions(shape, distribution);
     }
 
-    generatePegPositions() {
+    generatePegPositions(shape, distribution) {
+      switch (shape) {
+        case 'circle':
+          this.generateCircle(distribution);
+          break;
+        case 'square':
+          this.generateSquare(distribution);
+          break;
+        case 'triangle':
+          this.generateTriangle(distribution);
+          break;
+        case 'harmonic':
+          this.generateHarmonic(distribution);
+          break;
+      }
+    }
+
+    generateCircle(distribution) {
+      switch (distribution) {
+        case 'uniform':
+          this.generateCircleUniform();
+          break;
+        case 'random':
+          this.generateCircleRandom();
+          break;
+        case 'fibonacci':
+          this.generateCircleFibonacci();
+          break;
+        case 'overtones':
+          this.generateCircleOvertones();
+          break;
+      }
+    }
+
+    generateCircleUniform() {
       for (let i = 0; i < this.numPegs; i++) {
         const angle = (i / this.numPegs) * 2 * Math.PI;
         const x = this.radius + this.radius * Math.cos(angle);
         const y = this.radius + this.radius * Math.sin(angle);
         this.pegPositions.push({ x, y });
+      }
+    }
+
+    generateCircleRandom() {
+      for (let i = 0; i < this.numPegs; i++) {
+        const angle = Math.random() * 2 * Math.PI;
+        const x = this.radius + this.radius * Math.cos(angle);
+        const y = this.radius + this.radius * Math.sin(angle);
+        this.pegPositions.push({ x, y });
+      }
+    }
+
+    generateCircleFibonacci() {
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      for (let i = 0; i < this.numPegs; i++) {
+        const angle = i * goldenAngle;
+        const x = this.radius + this.radius * Math.cos(angle);
+        const y = this.radius + this.radius * Math.sin(angle);
+        this.pegPositions.push({ x, y });
+      }
+    }
+
+    generateCircleOvertones() {
+      for (let i = 0; i < this.numPegs; i++) {
+        const t = this.getOvertoneTValue(i, this.numPegs);
+        const angle = t * 2 * Math.PI;
+        const x = this.radius + this.radius * Math.cos(angle);
+        const y = this.radius + this.radius * Math.sin(angle);
+        this.pegPositions.push({ x, y });
+      }
+    }
+
+    generateSquare(distribution) {
+      const sideLength = this.canvasSize - 2;
+      const pegsPerSide = Math.floor(this.numPegs / 4);
+
+      for (let side = 0; side < 4; side++) {
+        for (let i = 0; i < pegsPerSide; i++) {
+          let t;
+          switch (distribution) {
+            case 'uniform':
+              t = i / pegsPerSide;
+              break;
+            case 'random':
+              t = Math.random();
+              break;
+            case 'fibonacci':
+              t = (i * (Math.sqrt(5) - 1) / 2) % 1;
+              break;
+            case 'overtones':
+              t = this.getOvertoneTValue(i, pegsPerSide);
+              break;
+          }
+
+          let x, y;
+          switch (side) {
+            case 0: // top
+              x = t * sideLength + 1;
+              y = 1;
+              break;
+            case 1: // right
+              x = sideLength + 1;
+              y = t * sideLength + 1;
+              break;
+            case 2: // bottom
+              x = (1 - t) * sideLength + 1;
+              y = sideLength + 1;
+              break;
+            case 3: // left
+              x = 1;
+              y = (1 - t) * sideLength + 1;
+              break;
+          }
+          this.pegPositions.push({ x, y });
+        }
+      }
+    }
+
+    generateTriangle(distribution) {
+      const sideLength = this.canvasSize - 2;
+      const height = (Math.sqrt(3) / 2) * sideLength;
+      const pegsPerSide = Math.floor(this.numPegs / 3);
+      const centerX = this.canvasSize / 2;
+      const topY = 1;
+      const bottomY = this.canvasSize - 1;
+
+      for (let side = 0; side < 3; side++) {
+        for (let i = 0; i < pegsPerSide; i++) {
+          let t;
+          switch (distribution) {
+            case 'uniform':
+              t = i / pegsPerSide;
+              break;
+            case 'random':
+              t = Math.random();
+              break;
+            case 'fibonacci':
+              t = (i * (Math.sqrt(5) - 1) / 2) % 1;
+              break;
+            case 'overtones':
+              t = this.getOvertoneTValue(i, pegsPerSide);
+              break;
+          }
+
+          let x, y;
+          switch (side) {
+            case 0: // bottom
+              x = centerX - sideLength / 2 + t * sideLength;
+              y = bottomY;
+              break;
+            case 1: // right
+              x = centerX + sideLength / 2 - t * sideLength / 2;
+              y = bottomY - t * height;
+              break;
+            case 2: // left
+              x = centerX - sideLength / 2 + t * sideLength / 2;
+              y = bottomY - t * height;
+              break;
+          }
+          this.pegPositions.push({ x, y });
+        }
+      }
+    }
+
+    generateHarmonic(distribution) {
+      const baseFrequency = 2 * Math.PI / this.numPegs;
+      for (let i = 0; i < this.numPegs; i++) {
+        let harmonicSeries;
+        switch (distribution) {
+          case 'uniform':
+            harmonicSeries = Math.sin(i * baseFrequency) +
+                             0.5 * Math.sin(2 * i * baseFrequency) +
+                             0.33 * Math.sin(3 * i * baseFrequency);
+            break;
+          case 'random':
+            harmonicSeries = Math.random() * 2 - 1;
+            break;
+          case 'fibonacci':
+            harmonicSeries = Math.sin((i * (Math.sqrt(5) - 1) / 2) * 2 * Math.PI);
+            break;
+          case 'overtones':
+            harmonicSeries = this.getOvertoneSeries(i, baseFrequency);
+            break;
+        }
+
+        const angle = (i / this.numPegs) * 2 * Math.PI;
+        const radius = this.radius * (0.8 + 0.2 * (harmonicSeries + 1) / 2);
+        const x = this.radius + radius * Math.cos(angle);
+        const y = this.radius + radius * Math.sin(angle);
+        this.pegPositions.push({ x, y });
+      }
+    }
+
+    getOvertoneSeries(i, baseFrequency) {
+      const overtones = [1, 2, 3, 4, 5, 6, 7, 8];
+      return overtones.reduce((sum, overtone) =>
+        sum + (1 / overtone) * Math.sin(overtone * i * baseFrequency), 0);
+    }
+
+    getOvertoneTValue(i, totalPegs) {
+      const baseFrequency = 2 * Math.PI / totalPegs;
+      const overtones = [1, 2, 3, 4, 5, 6, 7, 8];
+      const harmonicSeries = overtones.reduce((sum, overtone) =>
+        sum + (1 / overtone) * Math.sin(overtone * i * baseFrequency), 0);
+      return (harmonicSeries + 1) / 2; // Normalize to [0, 1]
+    }
+
+
+
+    drawPegs(ctx) {
+      ctx.fillStyle = 'white';
+      for (const peg of this.pegPositions) {
+        ctx.beginPath();
+        ctx.arc(peg.x, peg.y, 2, 0, 2 * Math.PI);
+        ctx.fill();
       }
     }
 
@@ -77,6 +288,7 @@ const StringArtGenerator = () => {
     async generateRandomArt(ctx, numWindings, setProgress, getSpeed, cancelFlag) {
       ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
+      this.drawPegs(ctx);
 
       let colorOffset = 0;
       let currentPeg = Math.floor(Math.random() * this.numPegs);
@@ -91,7 +303,7 @@ const StringArtGenerator = () => {
         currentPeg = nextPeg;
 
         setProgress((i + 1) / numWindings * 100);
-
+        
         const currentSpeed = getSpeed();
         if (currentSpeed === 0) {
           while (getSpeed() === 0 && !cancelFlag.current) {
@@ -111,10 +323,25 @@ const StringArtGenerator = () => {
     speedRef.current = speed;
   }, [speed]);
 
+  const updatePegVisualization = useCallback(() => {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const stringArt = new StringArt(numPegs, canvasSize, shape, distribution);
+
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvasSize, canvasSize);
+      stringArt.drawPegs(ctx);
+    }, [numPegs, canvasSize, shape, distribution]);
+
+    // Use this effect to call updatePegVisualization when relevant state changes
+    useEffect(() => {
+      updatePegVisualization();
+    }, [updatePegVisualization]);
+
   const startRandomArt = useCallback(async () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const stringArt = new StringArt(numPegs, canvasSize);
+  const canvas = canvasRef.current;
+  const ctx = canvas.getContext('2d');
+  const stringArt = new StringArt(numPegs, canvasSize, shape, distribution);
 
     setIsGenerating(true);
     setProgress(0);
@@ -123,7 +350,7 @@ const StringArtGenerator = () => {
     await stringArt.generateRandomArt(ctx, numWindings, setProgress, () => speedRef.current, cancelFlag);
     setIsGenerating(false);
     setStatus(cancelFlag.current ? 'Canceled' : 'Completed');
-  }, [numPegs, numWindings, canvasSize]);
+  }, [numPegs, numWindings, canvasSize, shape, distribution]);
 
   return (
     <div className="flex flex-col items-center space-y-4">
@@ -137,12 +364,15 @@ const StringArtGenerator = () => {
         <div>
           <label htmlFor="numPegs" className="mr-2">Number of Pegs:</label>
           <input
-            type="number"
-            id="numPegs"
-            value={numPegs}
-            onChange={(e) => setNumPegs(parseInt(e.target.value))}
-            className="border border-gray-300 px-2 py-1"
-          />
+              type="number"
+              id="numPegs"
+              value={numPegs}
+              onChange={(e) => {
+                setNumPegs(parseInt(e.target.value));
+                updatePegVisualization();
+              }}
+              className="border border-gray-300 px-2 py-1"
+            />
         </div>
         <div>
           <label htmlFor="numWindings" className="mr-2">Number of Windings:</label>
@@ -163,6 +393,40 @@ const StringArtGenerator = () => {
             onChange={(e) => setCanvasSize(parseInt(e.target.value))}
             className="border border-gray-300 px-2 py-1"
           />
+        </div>
+        <div>
+          <label htmlFor="shape" className="mr-2">Shape:</label>
+          <select
+              id="shape"
+              value={shape}
+              onChange={(e) => {
+                setShape(e.target.value);
+                updatePegVisualization();
+              }}
+              className="border border-gray-300 px-2 py-1"
+            >
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="triangle">Triangle</option>
+            <option value="harmonic">Harmonic</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="distribution" className="mr-2">Distribution:</label>
+          <select
+              id="distribution"
+              value={distribution}
+              onChange={(e) => {
+                setDistribution(e.target.value);
+                updatePegVisualization();
+              }}
+              className="border border-gray-300 px-2 py-1"
+            >
+            <option value="uniform">Uniform</option>
+            <option value="random">Random</option>
+            <option value="fibonacci">Fibonacci</option>
+            <option value="overtones">Overtones</option>
+          </select>
         </div>
         <div>
           <label htmlFor="speed" className="mr-2">Speed:</label>
