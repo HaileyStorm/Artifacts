@@ -6,6 +6,14 @@
   <component name="ChangeListManager">
     <list default="true" id="c47c0238-b456-45c1-ae4d-77efffd70a0f" name="Changes" comment="Folder organization.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/.eslintcache" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/.eslintcache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/0.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/0.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/1.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/1.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/2.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/2.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/3.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/3.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/4.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/4.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack.old" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack.old" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/StringArt/src/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/src/App.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

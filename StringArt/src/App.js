@@ -8,8 +8,10 @@ const StringArtGenerator = () => {
   const [canvasSize, setCanvasSize] = useState(1200);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [isApproximating, setIsApproximating] = useState(false);
+  const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(100);
+  const [status, setStatus] = useState('');
 
   const generatePastelColor = (t) => {
     const r = Math.sin(t) * 64 + 191;
@@ -76,16 +78,24 @@ const StringArtGenerator = () => {
       ctx.putImageData(imageData, 0, 0);
     }
 
-    generateRandomArt(ctx, numWindings) {
+    async generateRandomArt(ctx, numWindings, setProgress, speed, cancelFlag) {
       ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
 
       let colorOffset = 0;
+      let currentPeg = Math.floor(Math.random() * this.numPegs); // Start with a random peg
+
       for (let i = 0; i < numWindings; i++) {
-        const startPeg = Math.floor(Math.random() * this.numPegs);
-        const endPeg = Math.floor(Math.random() * this.numPegs);
-        this.drawLine(ctx, startPeg, endPeg, colorOffset);
+        if (cancelFlag.current) break;
+
+        const nextPeg = Math.floor(Math.random() * this.numPegs);
+        this.drawLine(ctx, currentPeg, nextPeg, colorOffset);
         colorOffset = (colorOffset + 0.1) % 1;
+
+        currentPeg = nextPeg; // The end peg becomes the start peg for the next iteration
+
+        setProgress((i + 1) / numWindings * 100);
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, 500 - speed*5)));
       }
     }
 
@@ -96,17 +106,77 @@ const StringArtGenerator = () => {
       let currentPeg = 0;
       let colorOffset = 0;
       const tempCanvas = new OffscreenCanvas(this.canvasSize, this.canvasSize);
-      const tempCtx = tempCanvas.getContext('2d');
+      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-      const calculateError = (imageData) => {
+      const calculateLocalError = (imageData, targetImageData, x, y, width, height) => {
         let error = 0;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const currentPixel = (imageData.data[i] + imageData.data[i + 1] + imageData.data[i + 2]) / 3;
-          const targetPixel = (targetImageData[i] + targetImageData[i + 1] + targetImageData[i + 2]) / 3;
-          error += Math.abs(currentPixel - targetPixel);
+        let pixelCount = 0;
+
+        for (let j = 0; j < height; j++) {
+          for (let i = 0; i < width; i++) {
+            const localIndex = (j * width + i) * 4;
+            const globalIndex = ((y + j) * this.canvasSize + (x + i)) * 4;
+
+            const currentPixel = (imageData.data[localIndex] + imageData.data[localIndex + 1] + imageData.data[localIndex + 2]) / 3;
+            const targetPixel = (targetImageData[globalIndex] + targetImageData[globalIndex + 1] + targetImageData[globalIndex + 2]) / 3;
+
+            error += Math.abs(currentPixel - targetPixel);
+            pixelCount++;
+          }
         }
-        return error;
+
+        return error / pixelCount;
       };
+
+      const sampleUniformly = (count, exclude = null) => {
+        const samples = new Set();
+        while (samples.size < count) {
+          const pegIndex = Math.floor(Math.random() * this.numPegs);
+          if (pegIndex !== exclude && !samples.has(pegIndex) && this.pegPositions[pegIndex]) {
+            samples.add(pegIndex);
+          }
+        }
+        return Array.from(samples);
+      };
+
+      const checkPeg = (nextPeg) => {
+          if (nextPeg === currentPeg) return Infinity;
+
+          const startPos = this.pegPositions[currentPeg];
+          const endPos = this.pegPositions[nextPeg];
+
+          //console.log(`Checking peg: current=${currentPeg}, next=${nextPeg}`);
+          //console.log(`Start position:`, startPos);
+          //console.log(`End position:`, endPos);
+
+          if (!startPos || !endPos) {
+            console.error(`Invalid peg position: currentPeg=${currentPeg}, nextPeg=${nextPeg}`);
+            return Infinity;
+          }
+
+          const minX = Math.max(0, Math.floor(Math.min(startPos.x, endPos.x)) - 1);
+          const minY = Math.max(0, Math.floor(Math.min(startPos.y, endPos.y)) - 1);
+          const maxX = Math.min(this.canvasSize - 1, Math.ceil(Math.max(startPos.x, endPos.x)) + 1);
+          const maxY = Math.min(this.canvasSize - 1, Math.ceil(Math.max(startPos.y, endPos.y)) + 1);
+          const width = maxX - minX + 1;
+          const height = maxY - minY + 1;
+
+          //console.log(`Bounding box: (${minX}, ${minY}) to (${maxX}, ${maxY})`);
+
+          tempCtx.drawImage(ctx.canvas, 0, 0);
+          this.drawLine(tempCtx, currentPeg, nextPeg, colorOffset);
+
+          const imageData = tempCtx.getImageData(minX, minY, width, height);
+          const error = calculateLocalError(imageData, targetImageData, minX, minY, width, height);
+
+          //console.log(`Error for peg ${nextPeg}: ${error}`);
+
+          return error;
+        };
+
+      const initialSampleSize = Math.max(15, Math.round(this.numPegs * 0.035));
+      const refinedSampleSize = Math.max(4, Math.round(initialSampleSize * 0.1));
+      const neighborRange = Math.max(1, Math.round(this.numPegs * 0.002));
 
       for (let i = 0; i < numWindings; i++) {
         if (cancelFlag.current) break;
@@ -114,41 +184,54 @@ const StringArtGenerator = () => {
         let bestError = Infinity;
         let bestPeg = -1;
 
-        const sampleSize = Math.min(20, this.numPegs);
-        const sampledPegs = new Set();
-        while (sampledPegs.size < sampleSize) {
-          sampledPegs.add(Math.floor(Math.random() * this.numPegs));
-        }
-
-        for (let nextPeg of sampledPegs) {
-          if (nextPeg === currentPeg) continue;
-
-          tempCtx.drawImage(ctx.canvas, 0, 0);
-          this.drawLine(tempCtx, currentPeg, nextPeg, colorOffset);
-
-          const error = calculateError(tempCtx.getImageData(0, 0, this.canvasSize, this.canvasSize));
+        // Step 1: Initial uniform sample
+        const initialSample = sampleUniformly(initialSampleSize, currentPeg);
+        for (const peg of initialSample) {
+          const error = checkPeg(peg);
           if (error < bestError) {
             bestError = error;
-            bestPeg = nextPeg;
+            bestPeg = peg;
           }
         }
 
         if (bestPeg !== -1) {
+          // Step 2: Refined sample around the best peg
+          const refinedRange = Math.floor(this.numPegs / 20); // 5% of total pegs
+          const refinedSample = sampleUniformly(refinedSampleSize).map(offset =>
+            (bestPeg + offset - refinedRange / 2 + this.numPegs) % this.numPegs
+          ).filter(peg => this.pegPositions[peg]); // Ensure valid peg positions
+          for (const peg of refinedSample) {
+            const error = checkPeg(peg);
+            if (error < bestError) {
+              bestError = error;
+              bestPeg = peg;
+            }
+          }
+
+          // Step 3: Check immediate neighbors
+          for (let j = -neighborRange; j <= neighborRange; j++) {
+            const neighborPeg = (bestPeg + j + this.numPegs) % this.numPegs;
+            if (this.pegPositions[neighborPeg]) {
+              const error = checkPeg(neighborPeg);
+              if (error < bestError) {
+                bestError = error;
+                bestPeg = neighborPeg;
+              }
+            }
+          }
+        }
+
+        if (bestPeg !== -1 && this.pegPositions[bestPeg]) {
           this.drawLine(ctx, currentPeg, bestPeg, colorOffset);
           currentPeg = bestPeg;
           colorOffset = (colorOffset + 0.1) % 1;
         } else {
-          currentPeg = Math.floor(Math.random() * this.numPegs);
+          console.error(`Invalid best peg: ${bestPeg}`);
+          currentPeg = sampleUniformly(1)[0]; // Choose a random valid peg
         }
 
-        if (i % 10 === 0) {
-          setProgress((i + 1) / numWindings * 100);
-          if (speed < 100) {
-            await new Promise(resolve => setTimeout(resolve, Math.max(0, 100 - speed)));
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
-        }
+        setProgress((i + 1) / numWindings * 100);
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, 500 - speed*5)));
       }
     }
   }
@@ -164,7 +247,7 @@ const StringArtGenerator = () => {
   const startApproximation = useCallback(async () => {
     if (uploadedImage) {
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const imageCanvas = imageCanvasRef.current;
       const imageCtx = imageCanvas.getContext('2d');
       const targetImageData = imageCtx.getImageData(0, 0, canvasSize, canvasSize).data;
@@ -173,21 +256,27 @@ const StringArtGenerator = () => {
 
       setIsApproximating(true);
       setProgress(0);
+      setStatus('Approximating...');
       cancelFlag.current = false;
       await stringArt.approximateImage(ctx, targetImageData, numWindings, setProgress, speed, cancelFlag);
-      //setIsApproximating(false);
+      setIsApproximating(false);
+      setStatus(cancelFlag.current ? 'Canceled' : 'Completed');
     }
   }, [uploadedImage, numPegs, canvasSize, numWindings, speed]);
 
-  useEffect(() => {
-    if (!isApproximating) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const stringArt = new StringArt(numPegs, canvasSize);
+  const startRandomArt = useCallback(async () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const stringArt = new StringArt(numPegs, canvasSize);
 
-      stringArt.generateRandomArt(ctx, numWindings);
-    }
-  }, [isApproximating, numPegs, numWindings, canvasSize]);
+    setIsGeneratingRandom(true);
+    setProgress(0);
+    setStatus('Generating...');
+    cancelFlag.current = false;
+    await stringArt.generateRandomArt(ctx, numWindings, setProgress, speed, cancelFlag);
+    setIsGeneratingRandom(false);
+    setStatus(cancelFlag.current ? 'Canceled' : 'Completed');
+  }, [numPegs, numWindings, canvasSize, speed]);
 
   useEffect(() => {
     if (uploadedImage) {
@@ -288,19 +377,22 @@ const StringArtGenerator = () => {
           <div>
             <button
               onClick={() => {
-                cancelFlag.current = true;
-                setIsApproximating(false);
+                if (isApproximating || isGeneratingRandom) {
+                  cancelFlag.current = true;
+                } else {
+                  startRandomArt();
+                }
               }}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
             >
-              {isApproximating ? "Stop" : "Generate Random Art"}
+              {isApproximating || isGeneratingRandom ? "Stop" : "Generate Random Art"}
             </button>
             <button
               onClick={startApproximation}
-              disabled={!uploadedImage || isApproximating}
+              disabled={!uploadedImage || isApproximating || isGeneratingRandom}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
             >
-              {isApproximating ? "Approximating..." : "Approximate Image"}
+              Approximate Image
             </button>
           </div>
           <div className="w-1/3">
@@ -310,7 +402,7 @@ const StringArtGenerator = () => {
                 style={{width: `${progress}%`}}
               ></div>
             </div>
-            <div className="text-center mt-1">{progress.toFixed(1)}%</div>
+            <div className="text-center mt-1">{status} {progress.toFixed(1)}%</div>
           </div>
         </div>
       </div>
