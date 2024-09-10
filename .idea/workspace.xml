@@ -4,8 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="c47c0238-b456-45c1-ae4d-77efffd70a0f" name="Changes" comment="Different peg shapes/distributions :)">
+    <list default="true" id="c47c0238-b456-45c1-ae4d-77efffd70a0f" name="Changes" comment="Nested shapes.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/.eslintcache" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/.eslintcache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack.old" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/node_modules/.cache/default-development/index.pack.old" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/StringArt/src/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/StringArt/src/App.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -112,7 +115,15 @@
       <option name="project" value="LOCAL" />
       <updated>1725946855617</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Nested shapes.">
+      <option name="closed" value="true" />
+      <created>1725948269939</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1725948269939</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -120,6 +131,7 @@
     <MESSAGE value="Folder organization." />
     <MESSAGE value="Screw image approximation." />
     <MESSAGE value="Different peg shapes/distributions :)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Different peg shapes/distributions :)" />
+    <MESSAGE value="Nested shapes." />
+    <option name="LAST_COMMIT_MESSAGE" value="Nested shapes." />
   </component>
 </project>
