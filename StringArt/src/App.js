@@ -4,13 +4,19 @@ const StringArtGenerator = () => {
   const canvasRef = useRef(null);
   const [numPegs, setNumPegs] = useState(1500);
   const [numWindings, setNumWindings] = useState(5000);
-  const [canvasSize, setCanvasSize] = useState(1200);
+  const [canvasSize, setCanvasSize] = useState(1600);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(100);
   const [status, setStatus] = useState('');
-    const [shape, setShape] = useState('circle');
-    const [distribution, setDistribution] = useState('uniform');
+  const [shape, setShape] = useState('circle');
+  const [distribution, setDistribution] = useState('uniform');
+
+  // New state variables for nested shape
+  const [innerShape, setInnerShape] = useState('none');
+  const [innerDistribution, setInnerDistribution] = useState('uniform');
+  const [innerSize, setInnerSize] = useState(50);
+  const [allowInnerWindings, setAllowInnerWindings] = useState(false);
 
   const generatePastelColor = (t) => {
     const r = Math.sin(t) * 64 + 191;
@@ -20,89 +26,83 @@ const StringArtGenerator = () => {
   };
 
   class StringArt {
-    constructor(numPegs, canvasSize, shape, distribution) {
+    constructor(numPegs, canvasSize, shape, distribution, innerShape, innerDistribution, innerSize) {
       this.numPegs = numPegs;
       this.canvasSize = canvasSize;
       this.radius = canvasSize / 2 - 1;
       this.pegPositions = [];
+      this.innerPegPositions = [];
       this.generatePegPositions(shape, distribution);
+      if (innerShape !== 'none') {
+        this.generateInnerPegPositions(innerShape, innerDistribution, innerSize);
+      }
     }
 
     generatePegPositions(shape, distribution) {
       switch (shape) {
         case 'circle':
-          this.generateCircle(distribution);
+          this.generateCircle(distribution, this.radius, this.numPegs, this.pegPositions);
           break;
         case 'square':
-          this.generateSquare(distribution);
+          this.generateSquare(distribution, this.radius, this.numPegs, this.pegPositions);
           break;
         case 'triangle':
-          this.generateTriangle(distribution);
+          this.generateTriangle(distribution, this.radius, this.numPegs, this.pegPositions);
           break;
         case 'harmonic':
-          this.generateHarmonic(distribution);
+          this.generateHarmonic(distribution, this.radius, this.numPegs, this.pegPositions);
           break;
       }
     }
 
-    generateCircle(distribution) {
-      switch (distribution) {
-        case 'uniform':
-          this.generateCircleUniform();
+    generateInnerPegPositions(shape, distribution, size) {
+      const innerRadius = this.radius * (size / 100);
+      const innerNumPegs = Math.floor(this.numPegs * (size / 100));
+
+      switch (shape) {
+        case 'circle':
+          this.generateCircle(distribution, innerRadius, innerNumPegs, this.innerPegPositions);
           break;
-        case 'random':
-          this.generateCircleRandom();
+        case 'square':
+          this.generateSquare(distribution, innerRadius, innerNumPegs, this.innerPegPositions);
           break;
-        case 'fibonacci':
-          this.generateCircleFibonacci();
+        case 'triangle':
+          this.generateTriangle(distribution, innerRadius, innerNumPegs, this.innerPegPositions);
           break;
-        case 'overtones':
-          this.generateCircleOvertones();
+        case 'harmonic':
+          this.generateHarmonic(distribution, innerRadius, innerNumPegs, this.innerPegPositions);
           break;
       }
     }
 
-    generateCircleUniform() {
-      for (let i = 0; i < this.numPegs; i++) {
-        const angle = (i / this.numPegs) * 2 * Math.PI;
-        const x = this.radius + this.radius * Math.cos(angle);
-        const y = this.radius + this.radius * Math.sin(angle);
-        this.pegPositions.push({ x, y });
+    generateCircle(distribution, radius, numPegs, positions) {
+      const centerOffset = this.canvasSize / 2;
+      for (let i = 0; i < numPegs; i++) {
+        let angle;
+        switch (distribution) {
+          case 'uniform':
+            angle = (i / numPegs) * 2 * Math.PI;
+            break;
+          case 'random':
+            angle = Math.random() * 2 * Math.PI;
+            break;
+          case 'fibonacci':
+            angle = i * (Math.PI * (3 - Math.sqrt(5)));
+            break;
+          case 'overtones':
+            angle = this.getOvertoneTValue(i, numPegs) * 2 * Math.PI;
+            break;
+        }
+        const x = centerOffset + radius * Math.cos(angle);
+        const y = centerOffset + radius * Math.sin(angle);
+        positions.push({ x, y });
       }
     }
 
-    generateCircleRandom() {
-      for (let i = 0; i < this.numPegs; i++) {
-        const angle = Math.random() * 2 * Math.PI;
-        const x = this.radius + this.radius * Math.cos(angle);
-        const y = this.radius + this.radius * Math.sin(angle);
-        this.pegPositions.push({ x, y });
-      }
-    }
-
-    generateCircleFibonacci() {
-      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-      for (let i = 0; i < this.numPegs; i++) {
-        const angle = i * goldenAngle;
-        const x = this.radius + this.radius * Math.cos(angle);
-        const y = this.radius + this.radius * Math.sin(angle);
-        this.pegPositions.push({ x, y });
-      }
-    }
-
-    generateCircleOvertones() {
-      for (let i = 0; i < this.numPegs; i++) {
-        const t = this.getOvertoneTValue(i, this.numPegs);
-        const angle = t * 2 * Math.PI;
-        const x = this.radius + this.radius * Math.cos(angle);
-        const y = this.radius + this.radius * Math.sin(angle);
-        this.pegPositions.push({ x, y });
-      }
-    }
-
-    generateSquare(distribution) {
-      const sideLength = this.canvasSize - 2;
-      const pegsPerSide = Math.floor(this.numPegs / 4);
+    generateSquare(distribution, size, numPegs, positions) {
+      const sideLength = size * 2;
+      const pegsPerSide = Math.floor(numPegs / 4);
+      const centerOffset = (this.canvasSize - sideLength) / 2;
 
       for (let side = 0; side < 4; side++) {
         for (let i = 0; i < pegsPerSide; i++) {
@@ -125,34 +125,35 @@ const StringArtGenerator = () => {
           let x, y;
           switch (side) {
             case 0: // top
-              x = t * sideLength + 1;
-              y = 1;
+              x = centerOffset + t * sideLength;
+              y = centerOffset;
               break;
             case 1: // right
-              x = sideLength + 1;
-              y = t * sideLength + 1;
+              x = centerOffset + sideLength;
+              y = centerOffset + t * sideLength;
               break;
             case 2: // bottom
-              x = (1 - t) * sideLength + 1;
-              y = sideLength + 1;
+              x = centerOffset + (1 - t) * sideLength;
+              y = centerOffset + sideLength;
               break;
             case 3: // left
-              x = 1;
-              y = (1 - t) * sideLength + 1;
+              x = centerOffset;
+              y = centerOffset + (1 - t) * sideLength;
               break;
           }
-          this.pegPositions.push({ x, y });
+          positions.push({ x, y });
         }
       }
     }
 
-    generateTriangle(distribution) {
-      const sideLength = this.canvasSize - 2;
+    generateTriangle(distribution, size, numPegs, positions) {
+      const sideLength = size * 2;
       const height = (Math.sqrt(3) / 2) * sideLength;
-      const pegsPerSide = Math.floor(this.numPegs / 3);
+      const pegsPerSide = Math.floor(numPegs / 3);
       const centerX = this.canvasSize / 2;
-      const topY = 1;
-      const bottomY = this.canvasSize - 1;
+      const centerOffset = (this.canvasSize - height) / 2;
+      const topY = centerOffset;
+      const bottomY = centerOffset + height;
 
       for (let side = 0; side < 3; side++) {
         for (let i = 0; i < pegsPerSide; i++) {
@@ -187,14 +188,15 @@ const StringArtGenerator = () => {
               y = bottomY - t * height;
               break;
           }
-          this.pegPositions.push({ x, y });
+          positions.push({ x, y });
         }
       }
     }
 
-    generateHarmonic(distribution) {
-      const baseFrequency = 2 * Math.PI / this.numPegs;
-      for (let i = 0; i < this.numPegs; i++) {
+    generateHarmonic(distribution, size, numPegs, positions) {
+      const centerOffset = this.canvasSize / 2;
+      const baseFrequency = 2 * Math.PI / numPegs;
+      for (let i = 0; i < numPegs; i++) {
         let harmonicSeries;
         switch (distribution) {
           case 'uniform':
@@ -213,18 +215,12 @@ const StringArtGenerator = () => {
             break;
         }
 
-        const angle = (i / this.numPegs) * 2 * Math.PI;
-        const radius = this.radius * (0.8 + 0.2 * (harmonicSeries + 1) / 2);
-        const x = this.radius + radius * Math.cos(angle);
-        const y = this.radius + radius * Math.sin(angle);
-        this.pegPositions.push({ x, y });
+        const angle = (i / numPegs) * 2 * Math.PI;
+        const radius = size * (0.8 + 0.2 * (harmonicSeries + 1) / 2);
+        const x = centerOffset + radius * Math.cos(angle);
+        const y = centerOffset + radius * Math.sin(angle);
+        positions.push({ x, y });
       }
-    }
-
-    getOvertoneSeries(i, baseFrequency) {
-      const overtones = [1, 2, 3, 4, 5, 6, 7, 8];
-      return overtones.reduce((sum, overtone) =>
-        sum + (1 / overtone) * Math.sin(overtone * i * baseFrequency), 0);
     }
 
     getOvertoneTValue(i, totalPegs) {
@@ -235,7 +231,11 @@ const StringArtGenerator = () => {
       return (harmonicSeries + 1) / 2; // Normalize to [0, 1]
     }
 
-
+    getOvertoneSeries(i, baseFrequency) {
+      const overtones = [1, 2, 3, 4, 5, 6, 7, 8];
+      return overtones.reduce((sum, overtone) =>
+        sum + (1 / overtone) * Math.sin(overtone * i * baseFrequency), 0);
+    }
 
     drawPegs(ctx) {
       ctx.fillStyle = 'white';
@@ -244,14 +244,16 @@ const StringArtGenerator = () => {
         ctx.arc(peg.x, peg.y, 2, 0, 2 * Math.PI);
         ctx.fill();
       }
+      for (const peg of this.innerPegPositions) {
+        ctx.beginPath();
+        ctx.arc(peg.x, peg.y, 2, 0, 2 * Math.PI);
+        ctx.fill();
+      }
     }
 
     drawLine(ctx, startPeg, endPeg, colorOffset) {
-      const startPos = this.pegPositions[startPeg];
-      const endPos = this.pegPositions[endPeg];
-
-      const dx = endPos.x - startPos.x;
-      const dy = endPos.y - startPos.y;
+      const dx = endPeg.x - startPeg.x;
+      const dy = endPeg.y - startPeg.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const steps = Math.max(100, Math.floor(distance));
 
@@ -268,8 +270,8 @@ const StringArtGenerator = () => {
 
         for (let i = 0; i < steps; i++) {
           const t = i / (steps - 1);
-          const x = Math.round(startPos.x + dx * t + perpX);
-          const y = Math.round(startPos.y + dy * t + perpY);
+          const x = Math.round(startPeg.x + dx * t + perpX);
+          const y = Math.round(startPeg.y + dy * t + perpY);
           const colorT = (colorOffset + t * 2) % 1;
 
           const [r, g, b] = generatePastelColor(colorT * Math.PI * 2);
@@ -285,25 +287,32 @@ const StringArtGenerator = () => {
       ctx.putImageData(imageData, 0, 0);
     }
 
-    async generateRandomArt(ctx, numWindings, setProgress, getSpeed, cancelFlag) {
+    async generateRandomArt(ctx, numWindings, setProgress, getSpeed, cancelFlag, allowInnerWindings) {
       ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
       this.drawPegs(ctx);
 
       let colorOffset = 0;
-      let currentPeg = Math.floor(Math.random() * this.numPegs);
+      let currentPeg = Math.floor(Math.random() * this.pegPositions.length);
+      const allPegs = [...this.pegPositions, ...this.innerPegPositions];
 
       for (let i = 0; i < numWindings; i++) {
         if (cancelFlag.current) break;
 
-        const nextPeg = Math.floor(Math.random() * this.numPegs);
-        this.drawLine(ctx, currentPeg, nextPeg, colorOffset);
+        let nextPeg;
+        do {
+          nextPeg = Math.floor(Math.random() * allPegs.length);
+        } while (!allowInnerWindings &&
+                 currentPeg >= this.pegPositions.length &&
+                 nextPeg >= this.pegPositions.length);
+
+        this.drawLine(ctx, allPegs[currentPeg], allPegs[nextPeg], colorOffset);
         colorOffset = (colorOffset + 0.1) % 1;
 
         currentPeg = nextPeg;
 
         setProgress((i + 1) / numWindings * 100);
-        
+
         const currentSpeed = getSpeed();
         if (currentSpeed === 0) {
           while (getSpeed() === 0 && !cancelFlag.current) {
@@ -324,33 +333,32 @@ const StringArtGenerator = () => {
   }, [speed]);
 
   const updatePegVisualization = useCallback(() => {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const stringArt = new StringArt(numPegs, canvasSize, shape, distribution);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const stringArt = new StringArt(numPegs, canvasSize, shape, distribution, innerShape, innerDistribution, innerSize);
 
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, canvasSize, canvasSize);
-      stringArt.drawPegs(ctx);
-    }, [numPegs, canvasSize, shape, distribution]);
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    stringArt.drawPegs(ctx);
+  }, [numPegs, canvasSize, shape, distribution, innerShape, innerDistribution, innerSize]);
 
-    // Use this effect to call updatePegVisualization when relevant state changes
-    useEffect(() => {
-      updatePegVisualization();
-    }, [updatePegVisualization]);
+  useEffect(() => {
+    updatePegVisualization();
+  }, [updatePegVisualization]);
 
   const startRandomArt = useCallback(async () => {
-  const canvas = canvasRef.current;
-  const ctx = canvas.getContext('2d');
-  const stringArt = new StringArt(numPegs, canvasSize, shape, distribution);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const stringArt = new StringArt(numPegs, canvasSize, shape, distribution, innerShape, innerDistribution, innerSize);
 
     setIsGenerating(true);
     setProgress(0);
     setStatus('Generating...');
     cancelFlag.current = false;
-    await stringArt.generateRandomArt(ctx, numWindings, setProgress, () => speedRef.current, cancelFlag);
+    await stringArt.generateRandomArt(ctx, numWindings, setProgress, () => speedRef.current, cancelFlag, allowInnerWindings);
     setIsGenerating(false);
     setStatus(cancelFlag.current ? 'Canceled' : 'Completed');
-  }, [numPegs, numWindings, canvasSize, shape, distribution]);
+  }, [numPegs, numWindings, canvasSize, shape, distribution, innerShape, innerDistribution, innerSize, allowInnerWindings]);
 
   return (
     <div className="flex flex-col items-center space-y-4">
@@ -361,18 +369,19 @@ const StringArtGenerator = () => {
         className="border border-gray-300"
       />
       <div className="space-y-2 w-full max-w-xl">
+        {/* Existing inputs */}
         <div>
           <label htmlFor="numPegs" className="mr-2">Number of Pegs:</label>
           <input
-              type="number"
-              id="numPegs"
-              value={numPegs}
-              onChange={(e) => {
-                setNumPegs(parseInt(e.target.value));
-                updatePegVisualization();
-              }}
-              className="border border-gray-300 px-2 py-1"
-            />
+            type="number"
+            id="numPegs"
+            value={numPegs}
+            onChange={(e) => {
+              setNumPegs(parseInt(e.target.value));
+              updatePegVisualization();
+            }}
+            className="border border-gray-300 px-2 py-1"
+          />
         </div>
         <div>
           <label htmlFor="numWindings" className="mr-2">Number of Windings:</label>
@@ -395,16 +404,16 @@ const StringArtGenerator = () => {
           />
         </div>
         <div>
-          <label htmlFor="shape" className="mr-2">Shape:</label>
+          <label htmlFor="shape" className="mr-2">Outer Shape:</label>
           <select
-              id="shape"
-              value={shape}
-              onChange={(e) => {
-                setShape(e.target.value);
-                updatePegVisualization();
-              }}
-              className="border border-gray-300 px-2 py-1"
-            >
+            id="shape"
+            value={shape}
+            onChange={(e) => {
+              setShape(e.target.value);
+              updatePegVisualization();
+            }}
+            className="border border-gray-300 px-2 py-1"
+          >
             <option value="circle">Circle</option>
             <option value="square">Square</option>
             <option value="triangle">Triangle</option>
@@ -412,22 +421,91 @@ const StringArtGenerator = () => {
           </select>
         </div>
         <div>
-          <label htmlFor="distribution" className="mr-2">Distribution:</label>
+          <label htmlFor="distribution" className="mr-2">Outer Distribution:</label>
           <select
-              id="distribution"
-              value={distribution}
-              onChange={(e) => {
-                setDistribution(e.target.value);
-                updatePegVisualization();
-              }}
-              className="border border-gray-300 px-2 py-1"
-            >
+            id="distribution"
+            value={distribution}
+            onChange={(e) => {
+              setDistribution(e.target.value);
+              updatePegVisualization();
+            }}
+            className="border border-gray-300 px-2 py-1"
+          >
             <option value="uniform">Uniform</option>
             <option value="random">Random</option>
             <option value="fibonacci">Fibonacci</option>
             <option value="overtones">Overtones</option>
           </select>
         </div>
+
+        {/* New inputs for inner shape */}
+        <div>
+          <label htmlFor="innerShape" className="mr-2">Inner Shape:</label>
+          <select
+            id="innerShape"
+            value={innerShape}
+            onChange={(e) => {
+              setInnerShape(e.target.value);
+              updatePegVisualization();
+            }}
+            className="border border-gray-300 px-2 py-1"
+          >
+            <option value="none">None</option>
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="triangle">Triangle</option>
+            <option value="harmonic">Harmonic</option>
+          </select>
+        </div>
+        {innerShape !== 'none' && (
+          <>
+            <div>
+              <label htmlFor="innerDistribution" className="mr-2">Inner Distribution:</label>
+              <select
+                id="innerDistribution"
+                value={innerDistribution}
+                onChange={(e) => {
+                  setInnerDistribution(e.target.value);
+                  updatePegVisualization();
+                }}
+                className="border border-gray-300 px-2 py-1"
+              >
+                <option value="uniform">Uniform</option>
+                <option value="random">Random</option>
+                <option value="fibonacci">Fibonacci</option>
+                <option value="overtones">Overtones</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="innerSize" className="mr-2">Inner Size (%):</label>
+              <input
+                type="range"
+                id="innerSize"
+                min="10"
+                max="90"
+                value={innerSize}
+                onChange={(e) => {
+                  setInnerSize(parseInt(e.target.value));
+                  updatePegVisualization();
+                }}
+                className="w-full"
+              />
+              <span className="ml-2">{innerSize}%</span>
+            </div>
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={allowInnerWindings}
+                  onChange={(e) => setAllowInnerWindings(e.target.checked)}
+                  className="mr-2"
+                />
+                Allow windings between inner pegs
+              </label>
+            </div>
+          </>
+        )}
+
         <div>
           <label htmlFor="speed" className="mr-2">Speed:</label>
           <input
